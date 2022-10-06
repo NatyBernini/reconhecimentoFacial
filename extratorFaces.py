@@ -1,42 +1,65 @@
-from mtcnn import MTCNN #Reconhece as faces
-from PIL import Image  #Manipula imagens
-from os import listdir  #Lista diretório
-from os.path import isdir  #Reconhece se é um diretório
-from numpy import asarray  #Converter uma img em pillow para numpy
+import cv2
+import os  # Lib para diretórios
+import time
 
-detector = MTCNN()  #Encontrar as faces dentro da img
+captura = cv2.VideoCapture(0)  # Ler a webcam
 
-
-def extrair_face(arquivo, size=(160, 160)):
-
-    img = Image.open(arquivo)  #Passa o caminho do arquivo
-    img = img.convert('RGB')  #Converter a img em RGB
-    array = asarray(img)  #Converte a img para matriz, pois o detector não ler um arquivo pillow
-    results = detector.detect_faces(array)
-    x1, y1, width, height = results[0]['box']
-    x2, y2 = x1 + width, y1 + height
-    face = array[y1:y2, x1:x2]  #Extrai apenas o rosto da img original
-    image = Image.fromarray(face)  #Converteu para Pillow novamente
-    image = image.resize(size)  #Redimensionar
-
-    return image
+# Carregar o xml do Haar Cascade
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
 
-#Carregar os diretórios dentro da pasta fotos:
-def load_dir(diretorio_src, diretorio_target):  #diretorio_src: fotos   diretorio_target: train
-    for subdir in listdir(diretorio_src):
-        path = diretorio_src + subdir + '\\'  #Pegar o caminho do subdiretório
-        path_tg = diretorio_target + subdir + '\\'
+# Irá salvar o nome da pessoa:
+def savePerson():
+    global identificacao
+    print('Qual o seu nome: ')
+    name = input()
+    identificacao = name
 
-        #Testar se o que está sendo lido é um diretório ou arquivo:
-        if not isdir(path):
-            continue
 
-        load_fotos(path, path_tg)
+# Criação dos diretórios:
+def saveDir(img):
+    global identificacao
+    id = time.strftime('%Y%m%d-%H%M%S')
+    if not os.path.exists('train'):  # Cria a pasta train para salvar os diretórios de cada pessoa
+        os.makedirs('train')
+    if not os.path.exists(f'train/{identificacao}'):  # Cria as subpastas para cada pessoa
+        os.makedirs(f'train/{identificacao}')
+    files = os.listdir(f'train/{identificacao}')
+    cv2.imwrite(f'train/{identificacao}/{str(id)}.jpg', img)
 
-def load_fotos(diretorio_src, diretorio_target):
-    print(diretorio_src)
-    print(diretorio_target)
 
-if __name__ == '__main__':
-    load_dir("/pythonProject/fotos\\", "C:\\Users\\DELL\\PycharmProjects\\pythonProject\\train\\")
+# Variáveis:
+identificacao = ''
+
+
+while True:
+
+    verificador, frame = captura.read()
+    if not verificador:
+        break
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Converter para cinza
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    for (x, y, w, h) in faces:
+
+        roi = gray[y:y+h, x:x+w]  # Cortar apenas a face
+
+        cv2.rectangle(frame, (x,y), (x+w, y+h), (200, 0, 0), 3)  # Desenhar o retângulo na face
+
+        # Checa o Boolsaveimg:
+        if key == ord('f'):
+            saveDir(roi)
+
+    cv2.imshow('frame', frame)
+
+    key = cv2.waitKey(1)
+
+    # Fechar o while:
+    if key == ord('q'):
+        break
+
+    # Salvar imagens:
+    if key == ord('s'):
+        savePerson()
+captura.release()
+cv2.destroyAllWindows()
