@@ -1,0 +1,22 @@
+import cv2
+import face_recognition as fr
+
+imgNatalia = fr.load_image_file('NataliaBernini.jpg')
+imgNatalia = cv2.cvtColor(imgNatalia, cv2.COLOR_BGR2RGB)
+imgTeste = fr.load_image_file('NataliaTeste.jpg')
+imgTeste = cv2.cvtColor(imgTeste, cv2.COLOR_BGR2RGB)
+
+# Reconhecer o rosto dentro da imagem:
+faceLoc = fr.face_locations(imgNatalia)[0]  # Extrai apenas uma face
+cv2.rectangle(imgNatalia, (faceLoc[3], faceLoc[0]), (faceLoc[1], faceLoc[2]), (0, 255, 0), 2)
+
+# Processo da extração das 128 medidas do rosto
+encodeNatalia = fr.face_encodings(imgNatalia)[0]
+encodeNataliaTeste = fr.face_encodings(imgTeste)[0]
+
+comparacao = fr.compare_faces([encodeNatalia],encodeNataliaTeste)
+distancia = fr.face_distance([encodeNatalia],encodeNataliaTeste)
+print(comparacao, distancia)
+
+cv2.imshow('Natalia', imgNatalia)
+cv2.waitKey(0)
