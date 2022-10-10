@@ -1,0 +1,74 @@
+import time
+
+import mysql.connector
+from mysql.connector import Error
+''' Criar tabelas 
+try:
+    # Criar conexão ao banco de dsdos:
+    con = mysql.connector.connect(host='localhost', database='reconhecimento_facial', user='root', password='123456789')
+
+    # Declaração SQL a ser executada:
+    criar_tabela_SQL = """CREATE TABLE pessoa(
+                            id char(15) not null primary key,
+                            nome varchar(255) not null,
+                            CPF varchar(14) not null, 
+                            diretorio  varchar(255)
+                          )"""
+
+    # Criar cursor e executar SQL no banco de dados:
+    cursor = con.cursor()
+    cursor.execute(criar_tabela_SQL)
+    print("Tabela de pessoa criada com sucesso")
+except mysql.connector.Error as erro:
+    print("Falha ao criar tabela no MySQL: {}".format(erro))
+
+'''
+
+''' Realizar Consultas 
+try:
+    con = mysql.connector.connect(host='localhost', database='reconhecimento_facial', user='root', password='123456789')
+    consulta_sql = "select * from pessoa"
+    cursor = con.cursor()
+    cursor.execute(consulta_sql)
+    linhas = cursor.fetchall()
+    print("Número total de registros retornados: ", cursor.rowcount)
+
+    print("\nMostrando as pessoas cadastradas")
+    for linha in linhas:
+        print("Id:", linha[0])
+        print("Nome: ", linha[1])
+        print("CPF: ", linha[2])
+        print("Diretório: ", linha[3], '\n')
+except Error as e:
+    print('Erro ao acessar tabela MySQL', e)  '''
+
+id = time.strftime('%Y%m%d-%H%M%S')
+nome = input("Qual o seu nome: ")
+CPF = input("Digite seu CPF no seguinte formato: xxx.xxx.xxx-xx ")
+diretorio = nome
+
+dados = "'" + id + "','" + nome + "','" + CPF + "','" + diretorio + "')"
+declaracao = '''INSERT INTO pessoa
+                (id, nome, CPF, diretorio)
+                values (
+             '''
+sql = declaracao + dados
+print(sql)
+''' Inserir dados na Tabela '''
+try:
+    con = mysql.connector.connect(host='localhost', database='reconhecimento_facial', user='root', password='123456789')
+    inserir_produtos = sql
+    cursor = con.cursor()
+    cursor.execute(inserir_produtos)
+    con.commit()  # Grava os dados na tabela de forma definitiva
+    print(cursor.rowcount, 'registros inseridos na tabela!')
+    cursor.close()
+except Error as erro:
+    print('Falha ao inserir dados no MySQL: {}'.format(erro))
+
+# Todos os tipos de código para o BD precisa encerrar com esse comando
+finally:
+    if (con.is_connected()):
+        cursor.close()
+        con.close()
+        print("Conexão ao MySQL finalizada.")
