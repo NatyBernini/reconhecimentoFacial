@@ -14,19 +14,19 @@ captura = cv2.VideoCapture(0)
 # Reconhecedor:
 reconhecedor = cv2.face.LBPHFaceRecognizer_create()
 
-try:
+try:  # Como acessa recurso fora da máquina, é necessário o try
     con = mysql.connector.connect(host='localhost', database='reconhecimento_facial', user='root', password='123456789')
-    consulta_sql = "select * from pessoa"
-    cursor = con.cursor()
-    cursor.execute(consulta_sql)
-    linhas = cursor.fetchall()
-    for linha in linhas:
+    consulta_sql = "select * from pessoa"  # Recebe a consulta que será executada
+    cursor = con.cursor()  # Faz a iteração linha a linha para cada registro da tabela
+    cursor.execute(consulta_sql)  # Executa a consulta
+    linhas = cursor.fetchall()  # Pega todas as linhas da tabela e armazena na variável linhas
+    for linha in linhas:  # Analisa linha por linha e depois irá salvar no diretorio a linha 3
         diretorio = linha[3]
-except Error as e:
+except Error as e:  # Caso a transmissão não seja feita com sucesso
     print('Erro ao acessar tabela MySQL', e)
 
 finally:
-    if (con.is_connected()):
+    if (con.is_connected()):  # Se a conexão ainda estiver aberta
         cursor.close()
         con.close()
         print("Conexão ao MySQL finalizada.")
