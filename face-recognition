@@ -1,22 +1,64 @@
 import cv2
 import face_recognition as fr
+import os
 
-imgNatalia = fr.load_image_file('NataliaBernini.jpg')
-imgNatalia = cv2.cvtColor(imgNatalia, cv2.COLOR_BGR2RGB)
-imgTeste = fr.load_image_file('NataliaTeste.jpg')
-imgTeste = cv2.cvtColor(imgTeste, cv2.COLOR_BGR2RGB)
+# Variáveis:
+encoders = []
+nomes = []
 
-# Reconhecer o rosto dentro da imagem:
-faceLoc = fr.face_locations(imgNatalia)[0]  # Extrai apenas uma face
-cv2.rectangle(imgNatalia, (faceLoc[3], faceLoc[0]), (faceLoc[1], faceLoc[2]), (0, 255, 0), 2)
 
-# Processo da extração das 128 medidas do rosto
-encodeNatalia = fr.face_encodings(imgNatalia)[0]
-encodeNataliaTeste = fr.face_encodings(imgTeste)[0]
 
-comparacao = fr.compare_faces([encodeNatalia],encodeNataliaTeste)
-distancia = fr.face_distance([encodeNatalia],encodeNataliaTeste)
-print(comparacao, distancia)
+def criarEncoders():
+    lista = os.listdir('Pessoas')
+    for arquivo in lista:
+        imgAtual = fr.load_image_file(f'Pessoas/{arquivo}')  # Leitura da imagem:
 
-cv2.imshow('Natalia', imgNatalia)
-cv2.waitKey(0)
+        imgAtual = cv2.cvtColor(imgAtual, cv2.COLOR_BGR2RGB)  # Converter a imagem:
+
+        encoders.append(fr.face_encodings(imgAtual)[0])  # Criar uma lista de Encoders e salvar
+        nomes.append(os.path.splitext(arquivo)[0])  # Salvará apenas o nome da pessoa sem a extensão .jpg
+
+
+# Comparar o encoders extraídos com a imagem da captura
+def compararWebcam():
+    captura = cv2.VideoCapture(0)
+
+    while True:
+        verificador, frame = captura.read()
+        if not verificador:
+            break
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+        imgRed = cv2.resize(frame, (0, 0), None, 0.25, 0.25)  # Redimensionar a imagem
+        imgRed = cv2.cvtColor(imgRed, cv2.COLOR_BGR2RGB)
+
+        try:
+            faceLoc = fr.face_locations(imgRed)[0]  # Localizar a face na webcam
+        except:
+            faceLoc = []
+
+        if faceLoc:
+            y1, x2, y2, x1 = faceLoc  # Coordenadas da face na webcam
+            y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4  # Multiplicou para retornar à dimensão original
+
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 255), 2)
+
+            encodeImg = fr.face_encodings(imgRed)[0]
+
+            for id, enc in enumerate(encoders):
+                comp = fr.compare_faces([encodeImg], enc)
+                if comp[0]:
+                    cv2.rectangle(frame, (x1, y2 - 35), (x2, y2), (255, 0, 255), -1)
+                    cv2.putText(frame, nomes[id], (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+                    print(encoders)
+
+        cv2.imshow('Webcam', frame)
+
+    captura.release()
+    cv2.destroyAllWindows()
+
+
+criarEncoders()
+compararWebcam()
