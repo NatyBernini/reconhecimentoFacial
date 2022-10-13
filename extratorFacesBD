@@ -1,6 +1,8 @@
 '''
-Esta aplicação irá criar um diretório, caso ele não exista, com o nome da pessoa.
-Depois ele irá extrair a face da webcam quantas vezes o usuário apertar a tecla f
+Esta aplicação irá se conectar com a webcam, caso a pessoa aperte a tecla 's' irá fazer o cadastro (nome e CPF), 
+caso aperte a tecla 'f' irá capturar uma imagem do rosto da pessoa e criar o encode, 
+depois todas essas informações obtidas serão salvas no Banco de Dados.
+Não é necessário uma base imagens para esse tipo de reconhecimento.
 '''
 
 # Importes:
@@ -8,7 +10,16 @@ import cv2  # Visão Computacional
 import os  # Faz a manipulação dos diretórios
 import time  # Nomear os arquivos
 import mysql.connector  # Conectar ao banco de dados
-from mysql.connector import Error
+from mysql.connector import Error  # Usar o módulo error
+import face_recognition as fr
+import numpy
+
+# Variáveis:
+id_dir = ''  # Chave primária
+identificacao = ''
+cpf = ''
+encoders = []
+encodePessoa = ''
 
 
 # Irá salvar o nome da pessoa e CPF:
@@ -21,23 +32,32 @@ def savePerson():
     cpf = input('Digite o seu CPF no seguinte formato xxx.xxx.xxx-xx: ')
 
 
+def criarEncoders(img):
+    global identificacao
+    global encodePessoa
+    lista = os.listdir('Pessoas')
+    for arquivo in lista:
+
+        imgAtual = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Converter a imagem:
+
+        encoders.append(fr.face_encodings(imgAtual)[0])  # Criar uma lista de Encoders e salvar
+        for enc in encoders:
+            numpy.savetxt(f'Pessoas/{identificacao}.txt', enc)
+            encodePessoa = f'Pessoas/{identificacao}.txt'
+
+
 # Criação dos diretórios:
 def saveDir(img):
     global identificacao  # Nome da pessoa
     global id_dir  # ID para o BD
-    global pasta  # O caminho do diretório da pessoa
-    global diretorio  # Qual o diretório principal que a pessoa encontra-se
     id = time.strftime('%Y%m%d-%H%M%S')  # Para a nomeação dos arquivos
-    if not os.path.exists('train'):  # Cria a pasta train para salvar os diretórios de cada pessoa
-        os.makedirs('train')
-    if not os.path.exists(f'train/{identificacao}'):  # Cria as subpastas para cada pessoa
-        os.makedirs(f'train/{identificacao}')
-        id_dir = id
-        pasta = f'train/{identificacao}'
-        diretorio = 'train'
+    if not os.path.exists('Pessoas'):  # Cria a pasta train para salvar os diretórios de cada pessoa
+        os.makedirs('Pessoas')
+    id_dir = id
 
-    files = os.listdir(f'train/{identificacao}')
-    cv2.imwrite(f'train/{identificacao}/{str(id)}.jpg', img)  # Salvar a imagem
+    files = os.listdir(f'Pessoas')
+    cv2.imwrite(f'Pessoas/{identificacao}.jpg', img)  # Salvar a imagem
+    criarEncoders(img)
     saveBD()
 
 
@@ -46,11 +66,10 @@ def saveBD():
     global id_dir  # ID da pessoa
     global identificacao  # Nome da pessoa
     global cpf
-    global diretorio
-    global pasta  # O caminho até o diretório individual da pessoa
-    dados = "'" + id_dir + "','" + identificacao + "','" + cpf + "','" + diretorio + "','" + pasta + "')"
+    global encodePessoa
+    dados = "'" + id_dir + "','" + identificacao + "','" + cpf + "','" + encodePessoa + "')"
     declaracao = '''INSERT INTO pessoa
-                    (id, nome, CPF, diretorio, pasta)
+                    (id, nome, CPF, encode)
                     values ('''
     sql = declaracao + dados
     try:
@@ -72,13 +91,6 @@ def saveBD():
             con.close()
             print("Conexão ao MySQL finalizada.")
 
-
-# Variáveis:
-id_dir = ''  # Chave primária
-identificacao = ''
-cpf = ''
-pasta = ''
-diretorio = ''
 
 # Ler a webcam:
 captura = cv2.VideoCapture(0)  # Faz a conexão com a câmera
