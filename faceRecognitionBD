@@ -1,0 +1,97 @@
+import cv2
+import face_recognition as fr
+import os
+import mysql.connector
+import numpy
+from mysql.connector import Error
+
+
+# Variáveis:
+encoders = []
+nomes = []
+diretorio = ''
+encode = ''
+
+'''def listarEncoders():
+    lista = os.listdir('Pessoas')
+    for arquivo in lista:
+        open(encode)
+        lines = numpy.loadtxt(encode, delimiter=' ')
+        imgAtual = fr.load_image_file(f'Pessoas/{arquivo}')  # Leitura da imagem:
+
+        imgAtual = cv2.cvtColor(imgAtual, cv2.COLOR_BGR2RGB)  # Converter a imagem:
+
+        encoders.append(fr.face_encodings(imgAtual)[0])  # Criar uma lista de Encoders e salvar
+        nomes.append(os.path.splitext(arquivo)[0])  # Salvará apenas o nome da pessoa sem a extensão .jpg'''
+
+
+def consultaBD():
+    global nomes
+    global diretorio
+    global encode
+    try:
+        con = mysql.connector.connect(host='localhost', database='reconhecimento_facial', user='root',
+                                      password='123456789')
+        consulta_sql = "select nome,diretorio, encode from pessoa"
+        cursor = con.cursor()
+        cursor.execute(consulta_sql)
+        linhas = cursor.fetchall()
+
+        for linha in linhas:
+            nomes = linha[0]
+            diretorio = linha[1]
+            encode = linha[2]
+    except Error as e:
+        print('Erro ao acessar tabela MySQL', e)
+    finally:
+        if (con.is_connected()):
+            cursor.close()
+            con.close()
+            print("Conexão ao MySQL finalizada.")
+
+    captura = cv2.VideoCapture(0)
+
+    while True:
+        verificador, frame = captura.read()
+        if not verificador:
+            break
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+        imgRed = cv2.resize(frame, (0, 0), None, 0.25, 0.25)  # Redimensionar a imagem
+        imgRed = cv2.cvtColor(imgRed, cv2.COLOR_BGR2RGB)
+
+        try:
+            faceLoc = fr.face_locations(imgRed)[0]  # Localizar a face na webcam
+
+        except:
+            faceLoc = []
+
+        if faceLoc:
+            y1, x2, y2, x1 = faceLoc  # Coordenadas da face na webcam
+            y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4  # Multiplicou para retornar à dimensão original
+
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 255), 2)
+
+            encodeImg = fr.face_encodings(imgRed)[0]
+
+            open(encode)
+            lines = numpy.loadtxt(encode, delimiter=' ')
+            comparacao = fr.compare_faces([lines], encodeImg)
+            if comparacao == [True]:
+                cv2.rectangle(frame, (x1, y2 - 35), (x2, y2), (255, 0, 255), -1)
+                cv2.putText(frame, nomes, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+            elif comparacao == [False]:
+                desc = 'Desconhecido'
+                cv2.rectangle(frame, (x1, y2 - 35), (x2, y2), (255, 0, 255), -1)
+                cv2.putText(frame, desc, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+
+        cv2.imshow('Webcam', frame)
+
+    captura.release()
+    cv2.destroyAllWindows()
+
+
+
+consultaBD()
