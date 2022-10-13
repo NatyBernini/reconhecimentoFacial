@@ -1,77 +1,92 @@
-'''
-Esta aplicação irá se conectar com a webcam, caso a pessoa aperte a tecla 's' irá fazer o cadastro (nome e CPF), 
-caso aperte a tecla 'f' irá capturar uma imagem do rosto da pessoa e criar o encode, 
-depois todas essas informações obtidas serão salvas no Banco de Dados.
-Não é necessário uma base imagens para esse tipo de reconhecimento.
-'''
+"""
+Esta aplicação irá criar um diretório, caso ele não exista, para armazenar todas as imagens e encoders de cada pessoa.
+Depois ele irá extrair a face da webcam quando o usuário apertar a tecla f e salvar no banco de dados.
+"""
 
-# Importes:
+# Importações:
 import cv2  # Visão Computacional
 import os  # Faz a manipulação dos diretórios
 import time  # Nomear os arquivos
 import mysql.connector  # Conectar ao banco de dados
-from mysql.connector import Error  # Usar o módulo error
+from mysql.connector import Error
 import face_recognition as fr
 import numpy
 
 # Variáveis:
-id_dir = ''  # Chave primária
-identificacao = ''
+id_dir = ''  # Chave primária do BD
+identificacao = ''  # Nome da pessoa
 cpf = ''
-encoders = []
+encoders = ''  # 128 Pontos de cada face que melhor identifica a pessoa
 encodePessoa = ''
 
 
-# Irá salvar o nome da pessoa e CPF:
+# Irá salvar o nome o CPF da pessoa:
 def savePerson():
+
     global identificacao
     global cpf
-    print('Qual o seu nome: ')
-    name = input()
+
+    print("-"*50)
+    print("{}Preencha os seguintes campos{}".format(" "*11, " "*11))
+    print("-" * 50)
+    name = input('Qual o seu nome: ')
     identificacao = name
     cpf = input('Digite o seu CPF no seguinte formato xxx.xxx.xxx-xx: ')
-
-
-def criarEncoders(img):
-    global identificacao
-    global encodePessoa
-    lista = os.listdir('Pessoas')
-    for arquivo in lista:
-
-        imgAtual = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Converter a imagem:
-
-        encoders.append(fr.face_encodings(imgAtual)[0])  # Criar uma lista de Encoders e salvar
-        for enc in encoders:
-            numpy.savetxt(f'Pessoas/{identificacao}.txt', enc)
-            encodePessoa = f'Pessoas/{identificacao}.txt'
+    print("-" * 50)
 
 
 # Criação dos diretórios:
 def saveDir(img):
+
     global identificacao  # Nome da pessoa
     global id_dir  # ID para o BD
-    id = time.strftime('%Y%m%d-%H%M%S')  # Para a nomeação dos arquivos
+
+    id_dir = time.strftime('%Y%m%d-%H%M%S')  # Para a nomeação dos arquivos
+
     if not os.path.exists('Pessoas'):  # Cria a pasta train para salvar os diretórios de cada pessoa
         os.makedirs('Pessoas')
-    id_dir = id
 
     files = os.listdir(f'Pessoas')
     cv2.imwrite(f'Pessoas/{identificacao}.jpg', img)  # Salvar a imagem
+
     criarEncoders(img)
     saveBD()
 
 
+def criarEncoders(img):
+
+    global identificacao
+    global encodePessoa
+    global encoders
+
+    lista = os.listdir('Pessoas')
+
+    for arquivo in lista:
+        imgAtual = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Converter a imagem:
+
+        encoders = (fr.face_encodings(imgAtual)[0])  # Criar uma lista de Encoders e salvar
+
+        # for enc in encoders:
+        numpy.savetxt(f'Pessoas/{identificacao}.txt', encoders)
+        encodePessoa = f'Pessoas/{identificacao}.txt'
+
+
 # Função para a integração do BD à aplicação:
 def saveBD():
+
     global id_dir  # ID da pessoa
     global identificacao  # Nome da pessoa
     global cpf
     global encodePessoa
+
     dados = "'" + id_dir + "','" + identificacao + "','" + cpf + "','" + encodePessoa + "')"
+
     declaracao = '''INSERT INTO pessoa
                     (id, nome, CPF, encode)
                     values ('''
+
     sql = declaracao + dados
+
     try:
         con = mysql.connector.connect(host='localhost', database='reconhecimento_facial', user='root',
                                       password='123456789')
@@ -81,12 +96,13 @@ def saveBD():
         con.commit()  # Grava os dados na tabela de forma definitiva
         print(cursor.rowcount, 'registros inseridos na tabela!')
         cursor.close()
+
     except Error as erro:
         print('Falha ao inserir dados no MySQL: {}'.format(erro))
-
+        
     # Todos os tipos de código para o BD precisa encerrar com esse comando
     finally:
-        if (con.is_connected()):
+        if con.is_connected():
             cursor.close()
             con.close()
             print("Conexão ao MySQL finalizada.")
