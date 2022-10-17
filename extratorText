@@ -1,6 +1,13 @@
 """
 Esta aplicação irá criar um diretório, caso ele não exista, para armazenar todas as imagens e encoders de cada pessoa.
 Depois ele irá extrair a face da webcam quando o usuário apertar a tecla f e salvar no banco de dados.
+A tabela no BD possui a seguinte estrutura:
+create table pessoaTeste(
+	id varchar(15) not null ,
+	nome varchar(255) not null,
+	CPF varchar(14) not null primary key, 
+    encode text
+) default charset = utf8;
 """
 
 # Importações:
