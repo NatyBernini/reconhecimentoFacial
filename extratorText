@@ -1,0 +1,152 @@
+"""
+Esta aplicação irá criar um diretório, caso ele não exista, para armazenar todas as imagens e encoders de cada pessoa.
+Depois ele irá extrair a face da webcam quando o usuário apertar a tecla f e salvar no banco de dados.
+"""
+
+# Importações:
+import cv2  # Visão Computacional
+import os  # Faz a manipulação dos diretórios
+import time  # Nomear os arquivos
+import mysql.connector  # Conectar ao banco de dados
+import numpy as np
+from mysql.connector import Error
+import face_recognition as fr
+import struct
+
+# Variáveis:
+id_dir = ''  # Chave primária do BD
+identificacao = ''  # Nome da pessoa
+cpf = ''
+encoders = ''  # 128 Pontos de cada face que melhor identifica a pessoa
+encodePessoa = ''
+conversao = ''
+
+
+# Irá salvar o nome o CPF da pessoa:
+def savePerson():
+
+    global identificacao
+    global cpf
+
+    print("-"*50)
+    print("{}Preencha os seguintes campos{}".format(" "*11, " "*11))
+    print("-" * 50)
+    name = input('Qual o seu nome: ')
+    identificacao = name
+    cpf = input('Digite o seu CPF no seguinte formato xxx.xxx.xxx-xx: ')
+    print("-" * 50)
+
+
+# Criação dos diretórios:
+def saveDir(img):
+
+    global identificacao  # Nome da pessoa
+    global id_dir  # ID para o BD
+
+    id_dir = time.strftime('%Y%m%d-%H%M%S')  # Para a nomeação dos arquivos
+
+    if not os.path.exists('pessoaTeste'):  # Cria a pasta train para salvar os diretórios de cada pessoa
+        os.makedirs('pessoaTeste')
+
+    files = os.listdir(f'pessoaTeste')
+    cv2.imwrite(f'pessoaTeste/{identificacao}.jpg', img)  # Salvar a imagem
+
+    criarEncoders(img)
+    saveBD()
+
+
+def criarEncoders(img):
+
+    global identificacao
+    global encodePessoa
+    global encoders
+    global conversao
+
+    lista = os.listdir('pessoaTeste')
+
+    for arquivo in lista:
+        imgAtual = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Converter a imagem:
+
+        encoders = (fr.face_encodings(imgAtual)[0])  # Criar uma lista de Encoders e salvar
+        encodePessoa = str(encoders)
+
+# Função para a integração do BD à aplicação:
+def saveBD():
+
+    global id_dir  # ID da pessoa
+    global identificacao  # Nome da pessoa
+    global cpf
+    global encodePessoa
+    global conversao
+
+    #dados = "\'" + id_dir + "\',\'" + identificacao + "\',\'" + cpf + "\'," + encodePessoa + ")"
+    dados = f"'{id_dir}','{identificacao}','{cpf}','{encodePessoa}')"
+
+    declaracao = '''INSERT INTO pessoaTeste
+                    (id, nome, CPF, encode)
+                    values ('''
+
+    sql = f'{declaracao}{dados}'
+
+
+    try:
+        con = mysql.connector.connect(host='localhost', database='reconhecimento_facial', user='root',
+                                      password='123456789')
+        inserir_produtos = sql
+        cursor = con.cursor()  # Faz a iteração linha a linha para cada registro da tabela
+        cursor.execute(inserir_produtos)  # Executa a inserção
+        con.commit()  # Grava os dados na tabela de forma definitiva
+        print(cursor.rowcount, 'registros inseridos na tabela!')
+        cursor.close()
+
+    except Error as erro:
+        print('Falha ao inserir dados no MySQL: {}'.format(erro))
+
+    # Todos os tipos de código para o BD precisa encerrar com esse comando
+    finally:
+        if con.is_connected():
+            cursor.close()
+            con.close()
+            print("Conexão ao MySQL finalizada.")
+
+
+# Ler a webcam:
+captura = cv2.VideoCapture(0)  # Faz a conexão com a câmera
+
+# Carregar o xml do Haar Cascade:
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+# Responsável pela detecção da face e pelo desenho do retângulo
+
+while True:
+
+    verificador, frame = captura.read()  # Verifica se a conexão está estabelecida e retorna o frame
+    if not verificador:  # Se houver album problema com a conexão o programa é fechado
+        break
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Converter para cinza
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)  # Irá detectar as faces
+
+    key = cv2.waitKey(1)
+
+    # Fechar o while:
+    if key == ord('q'):
+        break
+
+    # Salvar imagens:
+    if key == ord('s'):
+        savePerson()
+
+    # Itera sobre todas as faces no frame:
+    for (x, y, w, h) in faces:
+
+        roi = gray[y:y+h, x:x+w]  # Cortar apenas a face
+
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (200, 0, 0), 3)  # Desenhar o retângulo na face
+
+        if cv2.waitKey(1) == ord('f'):
+            saveDir(roi)
+
+    cv2.imshow('frame', frame)
+
+
+captura.release()
+cv2.destroyAllWindows()
