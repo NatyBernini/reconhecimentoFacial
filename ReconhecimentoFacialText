@@ -1,0 +1,159 @@
+import cv2  # Visão Computacional
+import time  # Nomear os arquivos
+import mysql.connector  # Conectar ao banco de dados
+from mysql.connector import Error
+import face_recognition as fr
+import numpy
+
+
+def savePerson(img):
+    print("-" * 70)
+    print("Preencha os seguintes campos".center(70))
+    print("-" * 70)
+    name = input('Insira seu nome e sobrenome no seguinte formato (NomeSobrenome): ')
+    cpf = input('Digite o seu CPF no seguinte formato (xxx.xxx.xxx-xx): ')
+    print("-" * 70)
+
+    id = time.strftime('%Y%m%d-%H%M%S')  # Para a nomeação do encode
+
+    imgAtual = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Converter a imagem para RGB
+
+    encoders = (fr.face_encodings(imgAtual)[0])  # Cria o encode da primeira face da foto
+
+    encodePessoa = str(encoders)  # Converte o encode para string para salvar no banco
+
+    return saveBD(id, name, cpf, encodePessoa)
+
+
+# Função para a integração do BD à aplicação:
+def saveBD(id, name, cpf, encodePessoa):
+    host = 'localhost'
+    database = 'reconhecimento_facial'
+    user = 'root'
+    password = '123456789'
+
+    dados = f"'{id}','{name}','{cpf}','{encodePessoa}')"
+
+    declaracao = '''INSERT INTO pessoaTeste
+                    (id, nome, CPF, encode)
+                    values ('''
+
+    sql = f'{declaracao}{dados}'
+
+    try:
+        con = mysql.connector.connect(host=host, database=database, user=user, password=password)
+        inserir_produtos = sql
+        cursor = con.cursor()  # Faz a iteração linha a linha para cada registro da tabela
+        cursor.execute(inserir_produtos)  # Executa a inserção
+        con.commit()  # Grava os dados na tabela de forma definitiva
+        print('{} registro inserido na tabela!'.format(cursor.rowcount).center(70))
+        cursor.close()
+
+    except Error as erro:
+        print('Falha ao inserir dados no MySQL: {}'.format(erro).center(70))
+
+    # Todos os tipos de código para o BD precisa encerrar com esse comando
+    finally:
+        if con.is_connected():
+            cursor.close()
+            con.close()
+            print("Conexão ao MySQL finalizada.".center(70))
+
+
+def consultaBD():
+
+    encoders = []
+    nomes = []
+
+    try:
+        con = mysql.connector.connect(host='localhost', database='reconhecimento_facial', user='root',
+                                      password='123456789')
+        consulta_sql = "select nome, encode from pessoaTeste"
+        cursor = con.cursor()
+        cursor.execute(consulta_sql)
+        linhas = cursor.fetchall()
+
+        for linha in linhas:
+            nomes.append(linha[0])
+
+            novo = numpy.array([])
+            nova = numpy.array([])
+
+            novo = numpy.append(novo, linha[1].split())
+
+            for x in novo:
+                item = x
+                for y in ['[', ']', 'b', '\n']:
+                    item = item.replace(y, "")
+                n = float(item)
+                nova = numpy.append(nova, n)
+            encoders.append(nova)
+
+    except Error as e:
+        print('Erro ao acessar tabela MySQL', e)
+
+    finally:
+        if con.is_connected():
+            cursor.close()
+            con.close()
+            print("-"*29)
+            print("Conexão ao MySQL finalizada".center(29))
+            print("-" * 29)
+
+    main(encoders, nomes)
+
+
+def main(encoders, nomes):
+
+    # Ler a webcam:
+    captura = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Faz a conexão com a câmera
+
+    while True:
+
+        verificador, frame = captura.read()
+        if not verificador:
+            break
+
+        imgRed = cv2.resize(frame, (0, 0), None, 0.25, 0.25)  # Redimensionar a imagem
+        imgRed = cv2.cvtColor(imgRed, cv2.COLOR_BGR2RGB)
+
+        try:
+            faceLoc = fr.face_locations(imgRed)[0]  # Localizar a face na webcam
+
+        except:
+            faceLoc = []
+
+        if faceLoc:
+            y1, x2, y2, x1 = faceLoc  # Coordenadas da face na webcam
+            y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4  # Multiplicou para retornar à dimensão original
+
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 255), 2)
+
+            encodeImg = fr.face_encodings(imgRed)[0]
+
+            for id, enc in enumerate(encoders):
+
+                comp = fr.compare_faces([encodeImg], enc)
+                distancia = fr.face_distance([encodeImg], enc)
+
+                if comp[0] and distancia <= 0.50:
+                    cv2.rectangle(frame, (x1, y2 - 35), (x2, y2), (255, 0, 255), -1)
+                    cv2.putText(frame, nomes[id], (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+        cv2.imshow('Webcam', frame)
+
+        if cv2.waitKey(1) == ord('s'):
+            savePerson(imgRed)
+            consultaBD()
+
+    captura.release()
+    cv2.destroyAllWindows()
+
+
+consultaBD()
+
+
+
