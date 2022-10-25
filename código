@@ -1,0 +1,5 @@
+import self as self
+
+from JFNA import JFRecFacial
+
+JFRecFacial.TelaInicial(self)
