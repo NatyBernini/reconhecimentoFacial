@@ -34,7 +34,7 @@ class JFRecFacial:
         # Criação da Janela ---------------------------
         window = Tk()
         window.title("Cadastro")
-        window.geometry("310x380+565+250")
+        window.geometry("310x420+565+250")
         window.configure(background=co1)
         window.resizable(0, 0)
 
@@ -45,6 +45,9 @@ class JFRecFacial:
         frame_cadastro = Frame(window, width=310, height=330, bg=co1, relief="flat")
         frame_cadastro.grid(row=1, column=0, pady=1, padx=0, sticky=NSEW)
 
+        frame_retorno = Frame(window, width=310, height=50, bg=co1, relief="flat")
+        frame_retorno.grid(row=2, column=0, pady=1, padx=0, sticky=NSEW)
+
         # Configuração do Frame title -----------------
         label_title = Label(frame_title, text="Cadastro", anchor=NE, font="Ivy 25", bg=co1, fg=co4)
         label_title.place(x=5, y=5)
@@ -52,12 +55,14 @@ class JFRecFacial:
         label_line = Label(frame_title, text="", width=280, anchor=NW, font="Ivy 1", bg=co2, fg=co4)
         label_line.place(x=10, y=45)
 
+        # Função para coletar os dados cadastrais -----
         def credenciais():
             nome = entry_nome.get()
             sobrenome = entry_sobrenome.get()
             self.nome = nome+sobrenome
             self.cpf = entry_cpf.get()
             messagebox.showinfo("Cadastro realizado!")
+
             self.id = time.strftime('%Y%m%d-%H%M%S')  # Para a nomeação do encode
 
             imgAtual = cv2.cvtColor(self.imgRed, cv2.COLOR_BGR2RGB)  # Converter a imagem para RGB
@@ -184,12 +189,14 @@ class JFRecFacial:
     # ---------- Função que faz a captura e o reconhecimento da imagem ----------
     def main(self):
 
-        # Ler a webcam:
+        # Ler a webcam ----------------------------
         captura = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Faz a conexão com a câmera
 
+        # Loop para manter a câmera aberta --------
         while True:
 
             verificador, frame = captura.read()
+            # Caso dê algum problema na conexão ---
             if not verificador:
                 break
 
@@ -213,8 +220,9 @@ class JFRecFacial:
                 for id, enc in enumerate(self.encoders):
 
                     comp = fr.compare_faces([encodeImg], enc)
-                    distancia = fr.face_distance([encodeImg], enc)
+                    distancia = fr.face_distance([encodeImg], enc)  # Representa a aproximação entre os encodes --
 
+                    # Comparação dos encodes com o da webcam ----------
                     if comp[0] and distancia <= 0.50:
                         cv2.rectangle(frame, (x1, y2 - 35), (x2, y2), (255, 0, 255), -1)
                         cv2.putText(frame, self.nomes[id], (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
